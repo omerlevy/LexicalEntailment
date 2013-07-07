@@ -4,4 +4,43 @@
   <artifactId>LexicalEntailment</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>LexicalEntailment</name>
+  <repositories>
+        <repository>
+          <id>ukp-oss-releases</id>
+          <url>http://zoidberg.ukp.informatik.tu-darmstadt.de/artifactory/public-releases</url>
+          <releases>
+            <enabled>true</enabled>
+            <updatePolicy>never</updatePolicy>
+            <checksumPolicy>warn</checksumPolicy>
+          </releases>
+          <snapshots>
+            <enabled>true</enabled>
+          </snapshots>
+        </repository>
+      </repositories>
+      <pluginRepositories>
+        <pluginRepository>
+          <id>ukp-oss-releases</id>
+          <url>http://zoidberg.ukp.informatik.tu-darmstadt.de/artifactory/public-releases</url>
+          <releases>
+            <enabled>true</enabled>
+            <updatePolicy>never</updatePolicy>
+            <checksumPolicy>warn</checksumPolicy>
+          </releases>
+          <snapshots>
+            <enabled>true</enabled>
+          </snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+      <dependencies>
+      	<dependency>
+      		<groupId>
+      			de.tudarmstadt.ukp.similarity.algorithms
+      		</groupId>
+      		<artifactId>
+      			de.tudarmstadt.ukp.similarity.algorithms.vsm-asl
+      		</artifactId>
+      		<version>1.0.0</version>
+      	</dependency>
+      </dependencies>
 </project>

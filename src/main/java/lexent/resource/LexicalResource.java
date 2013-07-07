@@ -10,8 +10,9 @@ public interface LexicalResource {
 	/**
 	 * @param t A term from the text.
 	 * @param h A term from the hypothesis.
-	 * @return The probability that t entails h.
+	 * @param context	terms observed around the target term t
+	 * @return The probability that t entails h, or -1 if the resource cannot provide an estimate.
 	 */
-	public double probEntails(String t, String h);
+	public double probEntails(String t, String h, LocalContext context);
 	
 }
