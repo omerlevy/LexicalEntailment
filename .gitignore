@@ -2,3 +2,7 @@
 .settings/org.eclipse.m2e.core.prefs
 .settings/org.eclipse.jdt.core.prefs
 target/
+
+.classpath.orig
+.gitignore
+pom.xml.orig
