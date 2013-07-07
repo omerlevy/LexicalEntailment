@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.Arrays;
 
 import lexent.resource.LexicalResource;
+import lexent.resource.LocalContext;
 import de.tudarmstadt.ukp.similarity.algorithms.api.SimilarityException;
 import de.tudarmstadt.ukp.similarity.algorithms.vsm.InnerVectorProduct;
 import de.tudarmstadt.ukp.similarity.algorithms.vsm.VectorComparator;
@@ -19,7 +20,7 @@ public class EsaLexicalResource implements LexicalResource {
 		// TODO use Lili's sim func (balAPInc) instead
 	}
 	
-	public double probEntails(String t, String h) {
+	public double probEntails(String t, String h, LocalContext context) {
 		try {
 			return esa.getSimilarity(Arrays.asList(t), Arrays.asList(h));
 		} catch (SimilarityException e) {
