@@ -13,8 +13,8 @@ import de.tudarmstadt.ukp.similarity.algorithms.vsm.store.vectorindex.VectorInde
 
 public class EsaLexicalResource implements LexicalResource {
 	
-	public EsaLexicalResource() {
-		esa = new VectorComparator(new VectorIndexReader(new File("../DKPRO_HOME/esaIndexesVector/en/wp")));
+	public EsaLexicalResource(String esaModelPath) {
+		esa = new VectorComparator(new VectorIndexReader(new File(esaModelPath)));
 		esa.setInnerProduct(InnerVectorProduct.LEFT_DICE);
 		esa.setNormalization(VectorNorm.NONE);
 		// TODO use Lili's sim func (balAPInc) instead

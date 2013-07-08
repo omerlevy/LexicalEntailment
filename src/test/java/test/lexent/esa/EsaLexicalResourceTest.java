@@ -8,7 +8,7 @@ public class EsaLexicalResourceTest {
 	
 	@Test
 	public void test_probEntails() {
-		EsaLexicalResource esa = new EsaLexicalResource();
+		EsaLexicalResource esa = new EsaLexicalResource("../DKPRO_HOME/esaIndexesVector/en/wp");
 		System.out.println(esa.probEntails("dog", "animal", null));
 		System.out.println(esa.probEntails("animal", "dog", null));
 		System.out.println(esa.probEntails("kidney", "organ", null));
