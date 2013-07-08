@@ -401,6 +401,14 @@ public class ContextualizedRuleApplication {
 		if (!isInDatabase(tPred, hPred)) {
 			return -1;
 		}
+		
+		if (xContext.equals("")) {
+			xContext = "NotAvailable";			 
+		}
+		
+		if (yContext.equals("")) {
+			yContext = "NotAvailable";			 
+		}
 
 		findTopInferred(xContext + "\t" + tPred + "\t" + yContext, TOP_RELEVANT, dirtInferredResult, twInferredResult, null);
 
