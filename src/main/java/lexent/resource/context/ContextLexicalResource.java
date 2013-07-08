@@ -22,11 +22,12 @@ public class ContextLexicalResource implements LexicalResource {
 	 * @param TwRuleFileName	Context sensitive rules
 	 * @param maxRules			Maximum entailed candidates per entailing (the top maxRules per entailing predicate will be read)
 	 * @param minScore			Minimum score of rule (rules with scores below that will not be read)
+	 * @param topRelevantInferred	The top inferred candidates that are taken under consideration
 	 * @throws IOException
 	 */
-	public ContextLexicalResource(String wordTopicFileName, String slotTopicFileName, String TwRuleFileName, int maxRules, double minScore) throws IOException {
+	public ContextLexicalResource(String wordTopicFileName, String slotTopicFileName, String TwRuleFileName, int maxRules, double minScore, int topRelevantInferred) throws IOException {
 		System.out.print("Initializing ContextLexicalResource.\n");
-		app = new ContextualizedRuleApplication(wordTopicFileName, slotTopicFileName, TwRuleFileName, maxRules, minScore);
+		app = new ContextualizedRuleApplication(wordTopicFileName, slotTopicFileName, TwRuleFileName, maxRules, minScore, topRelevantInferred);
 		System.out.print("ContextLexicalResource is ready.\n");
 	}
 
@@ -44,10 +45,11 @@ public class ContextLexicalResource implements LexicalResource {
 		String wordTopicFileName = contextDir + "/context_wordtopic.txt";
 		String slotTopicFileName = contextDir + "/context_slottopic.txt";
 		String twRuleFileName = contextDir + "/context_rules.txt";
-		int maxRules = 100;
-		double minScore = 0.05d;
+		int maxRules = 250;
+		double minScore = 0.01d;
+		int topRelevantInferred = 20;
 		
-		ContextLexicalResource resource = new ContextLexicalResource(wordTopicFileName, slotTopicFileName, twRuleFileName, maxRules, minScore);
+		ContextLexicalResource resource = new ContextLexicalResource(wordTopicFileName, slotTopicFileName, twRuleFileName, maxRules, minScore, topRelevantInferred);
 		
 		double prob;
 		double prob1;

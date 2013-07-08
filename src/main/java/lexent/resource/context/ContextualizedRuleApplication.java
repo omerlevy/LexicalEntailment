@@ -322,7 +322,7 @@ public class ContextualizedRuleApplication {
 		
 		System.out.println("Topic Word Context Sensitive Predicate Inference Rule Application is initializing.");
 		ContextualizedRuleApplication app = new ContextualizedRuleApplication(args[0], args[1], args[2], 
-				Integer.parseInt(args[3]), Double.parseDouble(args[4]));
+				Integer.parseInt(args[3]), Double.parseDouble(args[4]), TOP_RELEVANT);
 		
 		int size = TOP_RELEVANT;
 		Set<String> candidateSet = null;
@@ -379,8 +379,10 @@ public class ContextualizedRuleApplication {
 	private WordProbGivenTopic wordTable;
 	private TopicProbGivenSlot slotTable;
 	private TwRuleSet ruleTable;
+	private int topRelevantInferred;
 
-	public ContextualizedRuleApplication(String wordTopicFileName, String slotTopicFileName, String TwRuleFileName, int maxRules, double minScore) throws IOException {
+	public ContextualizedRuleApplication(String wordTopicFileName, String slotTopicFileName, String TwRuleFileName, int maxRules, double minScore, int topRelevantInferred) throws IOException {
+		this.topRelevantInferred = topRelevantInferred;
 		readRuleResources(wordTopicFileName, slotTopicFileName, TwRuleFileName, maxRules, minScore);
 		
 	}
@@ -410,7 +412,7 @@ public class ContextualizedRuleApplication {
 			yContext = "NotAvailable";			 
 		}
 
-		findTopInferred(xContext + "\t" + tPred + "\t" + yContext, TOP_RELEVANT, dirtInferredResult, twInferredResult, null);
+		findTopInferred(xContext + "\t" + tPred + "\t" + yContext, this.topRelevantInferred, dirtInferredResult, twInferredResult, null);
 
 		if (twInferredResult.size() > 0 ) {
 			return 1-((double) getRank(twInferredResult, toPredTemplate(hPred)) / twInferredResult.size());
