@@ -17,19 +17,27 @@ import lexent.resource.LocalContext;
 
 public class YagoLexicalResource implements LexicalResource {
 	
+	String directory = "\\\\qa-srv\\E\\cygwin\\home\\eden\\yago2core_20110315_jena\\yago2core_20110315_jena\\" ;
+    Dataset dataset;
+	public YagoLexicalResource(String dir)
+	{
+		directory = dir;
+		dataset = TDBFactory.createDataset(directory) ;
+	}
+	protected void finalize() throws Throwable
+	{
+	  //do finalization here
+	  super.finalize(); //not necessary if extending Object.
+	  dataset.close();
+	} 
+	
 	public double probEntails(String t, String h, LocalContext context) {
 		
-		String directory = "\\\\qa-srv\\E\\cygwin\\home\\eden\\yago2core_20110315_jena\\yago2core_20110315_jena\\" ;
-        
-    	Dataset dataset = TDBFactory.createDataset(directory) ;
-        
-          
         //ArrayList<String>  array = NLPAPI.GetResultsFromRight("event", dataset);
         ArrayList<String> arrayLeft = GetResultsFromLeft(t, dataset);
         for (String string : arrayLeft) {
 			if(string.compareTo(h)==0)
 			{
-				dataset.close();
 				return 1;
 			}
 			
@@ -39,13 +47,12 @@ public class YagoLexicalResource implements LexicalResource {
         	for (String string2 : arrayRight) {
     			if(string.compareTo(string2)==0)
     			{
-    				dataset.close();
     				return 0.5;
     			}
     		}
 		}
         //GetResultsFromQuery(dataset,"<http://www.mpii.de/yago/resource/Albert_Einstein>","","\"Albert Einstein\"");
-        dataset.close();
+       
         
 		// TODO Auto-generated method stub
 		return 0;

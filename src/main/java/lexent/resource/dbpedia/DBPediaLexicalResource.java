@@ -21,7 +21,17 @@ import lexent.resource.LocalContext;
 
 public class DBPediaLexicalResource implements LexicalResource {
 	
+	static String path = "\\\\qa-srv\\Data\\RESOURCES\\WordNet\\3.0\\dict.wn.orig";
+	
+	public DBPediaLexicalResource( String dir)
+	{
+		path = dir;
+		if(dict == null)
+			dict = GetDictionary();
+	}
+	
 	IDictionary dict = null;
+	
 	public double probEntails(String t, String h, LocalContext context) {
 		
 		if(dict == null)
@@ -74,7 +84,6 @@ public class DBPediaLexicalResource implements LexicalResource {
 	public static IDictionary GetDictionary()
 	{
 		//String path = "/media/qa-srv/D/Data/RESOURCES/WordNet/3.0/dict.wn.orig";
-		String path = "\\\\qa-srv\\Data\\RESOURCES\\WordNet\\3.0\\dict.wn.orig";
 		
 		//String path = "C:\\Users\\Ú„Ô\\Desktop\\Thesis\\dict.wn.orig";
 		URL url = null;

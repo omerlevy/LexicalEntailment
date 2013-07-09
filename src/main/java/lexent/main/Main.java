@@ -9,6 +9,7 @@ import lexent.data.Rte6DataReader;
 import lexent.model.LexicalEntailmentModel;
 import lexent.resource.LexicalResource;
 import lexent.resource.context.ContextLexicalResource;
+import lexent.resource.dbpedia.DBPediaLexicalResource;
 import lexent.resource.esa.EsaLexicalResource;
 import lexent.resource.yago.YagoLexicalResource;
 
@@ -45,7 +46,9 @@ public class Main {
 		List<LexicalResource> resources = new ArrayList<>();
 		resources.add(new ContextLexicalResource(contextModelPath));
 		resources.add(new EsaLexicalResource(esaModelPath));
-		resources.add(new YagoLexicalResource(yagoModelPath));
+		resources.add(new YagoLexicalResource("\\\\qa-srv\\E\\cygwin\\home\\eden\\yago2core_20110315_jena\\yago2core_20110315_jena\\"));
+		resources.add(new DBPediaLexicalResource("\\\\qa-srv\\Data\\RESOURCES\\WordNet\\3.0\\dict.wn.orig"));
+		
 		return resources;
 	}
 	
