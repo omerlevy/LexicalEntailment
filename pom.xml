@@ -52,5 +52,10 @@
       		<artifactId>tdb</artifactId>
       		<version>0.8.10</version>
       	</dependency>
+      	<dependency>
+      		<groupId>weka</groupId>
+      		<artifactId>weka</artifactId>
+      		<version>3.7.5</version>
+      	</dependency>
       </dependencies>
 </project>
