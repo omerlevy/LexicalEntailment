@@ -72,6 +72,8 @@ public class ContextualizedRuleApplication {
 				double prob = Double.parseDouble(tokens[2]);
 				probabilities.get(topicId).put(word, prob);
 			}
+			
+			reader.close();
 		}
 		
 		double getProb(String word, int topic) {
@@ -114,8 +116,9 @@ public class ContextualizedRuleApplication {
 				
 				line = reader.readLine();
 				readTopicDistLine(line, predicate+":Y");
-							
-			}			
+			}
+			
+			reader.close();
 		}
 		
 		public double getProb(String slot, int topic) {
@@ -281,8 +284,11 @@ public class ContextualizedRuleApplication {
 				}
 			} catch (EOFException e) {
 
+			} finally {
+				reader.close();
 			}
 			System.out.println("Read " + i + " rules total.");
+			
 		}
 		
 		public Map<String,TwRule> getRulesPerGivenLhs(String lhsPredicate) {

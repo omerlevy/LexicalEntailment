@@ -18,13 +18,9 @@ public class Rte6DataReader {
 		String curTopic = "";
 		Instance curInstance = null;
 		while ((line = reader.readLine()) != null) {
-			
 			if (line.startsWith("Topic:")) {
 				curTopic = line.split("\t")[1];
-				continue;
-			}
-			
-			if (line.startsWith("Hypo:")) {
+			} else if (line.startsWith("Hypo:")) {
 				if (curInstance != null) {
 					instances.add(curInstance);
 				}
@@ -32,10 +28,7 @@ public class Rte6DataReader {
 				curInstance.topic = curTopic;
 				curInstance.hypo = new Hypothesis(line);
 				curInstance.sents = new LinkedList<Text>();
-				continue;
-			}
-			
-			if (line.startsWith("Sent:")) {				
+			} else if (line.startsWith("Sent:")) {				
 				Text text = new Text(line);
 				curInstance.sents.add(text);
 			}			
@@ -45,22 +38,9 @@ public class Rte6DataReader {
 			instances.add(curInstance);
 		}
 		
+		reader.close();
+		
 		return instances;
-	}
-	
-	public static void unitTest(String path) throws IOException {
-		
-		Rte6DataReader reader = new Rte6DataReader();
-		List<Instance> instances = reader.read(path);
-		
-		for (Instance inst : instances) {
-			System.out.print(inst);
-		}
-		
-	}
-	
-	public static void main(String[] args) throws IOException {
-		unitTest(args[0]);
 	}
 	
 }
