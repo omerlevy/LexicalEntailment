@@ -45,6 +45,8 @@ public class Rte6DataReader {
 			instances.add(curInstance);
 		}
 		
+		reader.close();
+		
 		return instances;
 	}
 	
