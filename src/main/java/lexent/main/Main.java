@@ -42,23 +42,22 @@ public class Main {
 		print(results);
 	}
 	
-	private static List<LexicalResource> initResources(String contextModelPath,
-			String esaModelPath, String yagoModelPath) throws IOException {
+	private static List<LexicalResource> initResources(String contextModelPath, String esaModelPath, String yagoModelPath) throws IOException {
 		List<LexicalResource> resources = new ArrayList<>();
 		resources.add(new ContextLexicalResource(contextModelPath+"/context_wordtopic.txt", contextModelPath+"/context_slottopic.txt",
 				contextModelPath+"/context_rules.txt", 250, 0.01, 10));
 		resources.add(new EsaLexicalResource(esaModelPath));
-		resources.add(new YagoLexicalResource("\\\\qa-srv\\E\\cygwin\\home\\eden\\yago2core_20110315_jena\\yago2core_20110315_jena\\"));
-		resources.add(new DBPediaLexicalResource("\\\\qa-srv\\Data\\RESOURCES\\WordNet\\3.0\\dict.wn.orig"));
+		resources.add(new YagoLexicalResource("\\\\qa-srv\\E\\cygwin\\home\\eden\\yago2core_20110315_jena\\yago2core_20110315_jena\\")); // TODO normalize yago path
+		resources.add(new DBPediaLexicalResource("\\\\qa-srv\\Data\\RESOURCES\\WordNet\\3.0\\dict.wn.orig")); // TODO normalize WN path
 		
 		return resources;
 	}
 	
-	private static Results evaluate(LexicalEntailmentModel model, List<Instance> test) {
+	private static Results evaluate(LexicalEntailmentModel model, List<Instance> test) throws Exception {
 		Results results = new Results();
 		for (Instance instance : test) {
-			for (Text text : instance.sents){
-			results.update(text.entails, model.entails(text.sent, instance.hypo.sent));
+			for (Text text : instance.sents) {
+				results.update(text.entails, model.entails(text.sent, instance.hypo.sent));
 			}
 		}
 		return results;

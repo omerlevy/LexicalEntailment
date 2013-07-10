@@ -5,19 +5,20 @@ package lexent.data;
 
 /**
  * @author user
- *
+ * 
  */
 public class Word {
-	
-	public String	lemma;
-	public POS	pos;
-	
-	Word(String posStr, String lemma) {
+
+	public String lemma;
+	public POS pos;
+
+	public Word(String posStr, String lemma) {
 		this.lemma = lemma;
 		this.pos = POS.fromString(posStr);
 	}
-	
-	@Override public String toString() {
+
+	@Override
+	public String toString() {
 		return pos + ":" + lemma;
 	}
 
