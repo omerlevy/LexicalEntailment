@@ -3,6 +3,7 @@ package lexent.model;
 import java.util.List;
 
 import lexent.data.Instance;
+import lexent.data.Sentence;
 import lexent.resource.LexicalResource;
 
 public class LexicalEntailmentModel {
@@ -15,7 +16,7 @@ public class LexicalEntailmentModel {
 		// TODO
 	}
 	
-	public boolean entails(String t, String h) {
+	public boolean entails(Sentence text, Sentence hypo) {
 		// TODO
 	}
 	

@@ -193,6 +193,9 @@ public class ContextualizedRuleApplication {
 		Map<Integer, Double> readTwScores(String line) {
 			
 			Map<Integer, Double> scores = new HashMap<Integer, Double>();
+			if (line.equals("")) {
+				return scores;
+			}
 			String[] tokens = line.split("\t");
 			for (String token : tokens) {
 				String[] subTokens = token.split("::");
@@ -445,6 +448,11 @@ public class ContextualizedRuleApplication {
 	
 	protected void printInferred(String method, String lhsTuple, List<TwRule> rules) {		
 		System.out.println("Top " + method + " substitutes for: " + lhsTuple + "\n");
+		
+		if (lhsTuple.split("\t").length != 3) {
+			System.out.print("Invalid lhsTuple\n");
+			return;
+		}
 		
 		String xContext = lhsTuple.split("\t")[0];
 		String yContext = lhsTuple.split("\t")[2];

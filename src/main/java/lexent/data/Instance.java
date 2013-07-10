@@ -1,11 +1,21 @@
 package lexent.data;
 
+import java.util.List;
+
+
 public class Instance {
 	
-	public String t;
+	public String	topic;
+	public Hypothesis	hypo;
+	public List<Text>	sents;
 	
-	public String h;
-	
-	public boolean entails;
+	@Override
+	public String toString() {
+		String str =  "Topic: " + topic + "\n" + hypo.toString();
+		for (Text text : sents) {
+			str += text.toString();
+		}		
+		return str;			
+	}
 	
 }
