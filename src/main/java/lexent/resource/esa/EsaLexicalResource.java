@@ -3,7 +3,9 @@ package lexent.resource.esa;
 import java.io.File;
 import java.util.Arrays;
 
+import lexent.data.Word;
 import lexent.resource.LexicalResource;
+import lexent.resource.LexicalResourceException;
 import lexent.resource.LocalContext;
 import de.tudarmstadt.ukp.similarity.algorithms.api.SimilarityException;
 import de.tudarmstadt.ukp.similarity.algorithms.vsm.InnerVectorProduct;
@@ -20,11 +22,13 @@ public class EsaLexicalResource implements LexicalResource {
 		// TODO use Lili's sim func (balAPInc) instead
 	}
 	
-	public double probEntails(String t, String h, LocalContext context) {
+	public double probEntails(Word _t, Word _h, LocalContext context) throws LexicalResourceException {
+		String t = _t.lemma;
+		String h = _h.lemma;
 		try {
 			return esa.getSimilarity(Arrays.asList(t), Arrays.asList(h));
 		} catch (SimilarityException e) {
-			return 0.0;
+			throw new LexicalResourceException("Words not found: " + t + " " + h , e);
 		}
 	}
 	

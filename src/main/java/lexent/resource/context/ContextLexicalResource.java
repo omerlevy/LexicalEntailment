@@ -8,7 +8,11 @@ package lexent.resource.context;
  */
 
 import java.io.IOException;
+
+import lexent.data.POS;
+import lexent.data.Word;
 import lexent.resource.LexicalResource;
+import lexent.resource.LexicalResourceException;
 import lexent.resource.LocalContext;
 
 public class ContextLexicalResource implements LexicalResource {
@@ -31,69 +35,24 @@ public class ContextLexicalResource implements LexicalResource {
 		System.out.print("ContextLexicalResource is ready.\n");
 	}
 
-	public double probEntails(String t, String h, LocalContext context) {
+	public double probEntails(Word _t, Word _h, LocalContext context) throws LexicalResourceException {
 		
-		if (t.equals(h)) {
-			return 1;
+		if (_t.pos.equals(POS.Verb) && _h.pos.equals(POS.Verb)) {
+			String t = _t.lemma;
+			String h = _h.lemma;
+			if (t.equals(h)) {
+				return 1;
+			} else {
+				double score = app.calcContextSensitiveScore(t, h, context.getContextX(), context.getContextY());
+				if (score < 0) {
+					throw new LexicalResourceException("Unknown words: " + _t + " " + _h);
+				}
+				return score;
+			}
 		} else {
-			return app.calcContextSensitiveScore(t, h, context.getContextX(), context.getContextY());
+			throw new LexicalResourceException("Non-verbs: " + _t + " " + _h);
 		}
+		
 	}
 	
-	public static void unitTest(String contextDir) throws IOException {
-		
-		String wordTopicFileName = contextDir + "/context_wordtopic.txt";
-		String slotTopicFileName = contextDir + "/context_slottopic.txt";
-		String twRuleFileName = contextDir + "/context_rules.txt";
-		int maxRules = 250;
-		double minScore = 0.01d;
-		int topRelevantInferred = 20;
-		
-		ContextLexicalResource resource = new ContextLexicalResource(wordTopicFileName, slotTopicFileName, twRuleFileName, maxRules, minScore, topRelevantInferred);
-		
-		double prob;
-		double prob1;
-		double prob2;
-		
-		
-		prob1 = resource.probEntails("acquire", "buy", new LocalContext("microsoft", "share"));
-		System.out.printf("microsoft acquire company -> buy: %.2f\n", prob1);
-		
-		prob2 = resource.probEntails("acquire", "buy", new LocalContext("baby", "skill"));
-		System.out.printf("baby acquire skill -> buy: %.2f\n", prob2);
-		
-		assert(prob1 > prob2);
-		
-		
-		prob1 = resource.probEntails("fight", "help", new LocalContext("aspirin", "headache"));
-		System.out.printf("aspirin fight headache -> help: %.2f\n", prob1);
-		
-		prob2 = resource.probEntails("fight", "help", new LocalContext("israel", "terror"));
-		System.out.printf("israel fight terror -> help: %.2f\n", prob2);
-		
-		assert(prob1 > prob2);
-		
-		
-		prob = resource.probEntails("buy", "purchase", new LocalContext("", ""));
-		System.out.printf("buy -> purchase: %.2f\n", prob);
-		assert(prob > 0);
-		
-		prob = resource.probEntails("buy", "buy", new LocalContext("", ""));
-		System.out.printf("buy -> buy: %.2f\n", prob);
-		assert(prob == 1);
-		
-		
-		prob = resource.probEntails("blahhhhh", "buy", new LocalContext("", ""));
-		System.out.printf("blahhhh -> buy: %.2f\n", prob);
-		assert(prob == -1);
-		
-		prob = resource.probEntails("buy", "blahhhh", new LocalContext("", ""));
-		System.out.printf("buy -> blahhhh: %.2f\n", prob);
-		assert(prob == -1);		
-	}
-	
-	public static void main(String[] args) throws IOException {		
-		unitTest(args[0]);		
-	}
-
 }
