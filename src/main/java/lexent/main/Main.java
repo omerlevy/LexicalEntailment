@@ -56,7 +56,7 @@ public class Main {
 	private static Results evaluate(LexicalEntailmentModel model, List<Instance> test) throws Exception {
 		Results results = new Results();
 		for (Instance instance : test) {
-			for (Text text : instance.sents) {
+			for (Text text : instance.texts) {
 				results.update(text.entails, model.entails(text.sent, instance.hypo.sent));
 			}
 		}

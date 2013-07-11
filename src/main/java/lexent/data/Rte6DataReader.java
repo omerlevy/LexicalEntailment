@@ -27,10 +27,10 @@ public class Rte6DataReader {
 				curInstance = new Instance();
 				curInstance.topic = curTopic;
 				curInstance.hypo = new Hypothesis(line);
-				curInstance.sents = new LinkedList<Text>();
+				curInstance.texts = new LinkedList<Text>();
 			} else if (line.startsWith("Sent:")) {				
 				Text text = new Text(line);
-				curInstance.sents.add(text);
+				curInstance.texts.add(text);
 			}			
 		}
 		

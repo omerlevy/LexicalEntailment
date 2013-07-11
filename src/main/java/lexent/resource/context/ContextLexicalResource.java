@@ -43,7 +43,7 @@ public class ContextLexicalResource implements LexicalResource {
 			if (t.equals(h)) {
 				return 1;
 			} else {
-				double score = app.calcContextSensitiveScore(t, h, context.getContextX(), context.getContextY());
+				double score = app.calcContextSensitiveScore(t, h, context.contextX, context.contextY);
 				if (score < 0) {
 					throw new LexicalResourceException("Unknown words: " + _t + " " + _h);
 				}

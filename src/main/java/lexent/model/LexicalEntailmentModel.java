@@ -52,10 +52,8 @@ public class LexicalEntailmentModel {
 		for (Word h : hypo.words) {
 			double maxProb = -1.0;
 			for (Word t : text.words) {
-				LocalContext context = null; // TODO: Oren, build context in data reader, as part of Word.
-				//context = h.context;
 				try {
-					double prob = resource.probEntails(t, h, context);
+					double prob = resource.probEntails(t, h, text.context);
 					maxProb = prob > maxProb ? prob : maxProb;
 				} catch (LexicalResourceException e) {
 					// Do nothing.
@@ -78,7 +76,7 @@ public class LexicalEntailmentModel {
 		List<List<Double>> trainingData = new ArrayList<>();
 		for (Instance instance : train) {
 			Hypothesis hypo = instance.hypo;
-			for (Text text : instance.sents) {
+			for (Text text : instance.texts) {
 				List<Double> featureVector = generateFeatureVector(text.sent, hypo.sent);
 				if (text.entails) {
 					featureVector.add(TRUE);
@@ -147,6 +145,6 @@ public class LexicalEntailmentModel {
 	
 	private static double TRUE = 1.0;
 	
-	private static double FALSE = 1.0;
+	private static double FALSE = 0.0;
 	
 }
