@@ -1,6 +1,7 @@
 package lexent.model;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -12,7 +13,6 @@ import lexent.data.Text;
 import lexent.data.Word;
 import lexent.resource.LexicalResource;
 import lexent.resource.LexicalResourceException;
-import lexent.resource.LocalContext;
 import weka.classifiers.Classifier;
 import weka.classifiers.trees.J48;
 import weka.core.Attribute;
@@ -31,9 +31,9 @@ public class LexicalEntailmentModel {
 	
 	/* --- Methods --- */
 
-	public void train(List<Instance> train) throws Exception {
+	public void train(List<Instance> train, String savePath) throws Exception {
 		List<List<Double>> trainingData = generateTrainingData(train);
-		learnModel(trainingData);
+		learnModel(trainingData, savePath);
 	}
 	
 	public boolean entails(Sentence text, Sentence hypo) throws Exception {
@@ -97,21 +97,24 @@ public class LexicalEntailmentModel {
 		return featureVector;
 	}
 	
-	private void learnModel(List<List<Double>> trainingData) throws Exception {
+	private void learnModel(List<List<Double>> trainingData, String savePath) throws Exception {
 		Instances instances = createWekaInstances();
 		for (List<Double> instance : trainingData) {
 			instances.add(new DenseInstance(1.0, toArray(instance)));
 		}
+		instances.setClassIndex(instances.numAttributes() - 1);
 		
-		// TODO DEBUG
-		ArffSaver arff = new ArffSaver();
-		arff.setInstances(instances);
-		arff.setFile(new File("src/main/resources/data/train.arff"));
-		arff.writeBatch();
-		// TODO DEBUG
+		saveInstances(instances, savePath);
 		
 		model = new J48();
 		model.buildClassifier(instances);
+	}
+	
+	private void saveInstances(Instances instances, String savePath) throws IOException {
+		ArffSaver arff = new ArffSaver();
+		arff.setInstances(instances);
+		arff.setFile(new File(savePath));
+		arff.writeBatch();
 	}
 	
 	private Instances createWekaInstances() {
