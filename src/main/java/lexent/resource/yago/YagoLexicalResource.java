@@ -256,28 +256,25 @@ public class YagoLexicalResource implements LexicalResource {
 		ArrayList<String> arrResult = new ArrayList<String>();
 		String sparqlQueryString2 = "SELECT distinct ?miss  WHERE { ";
 		if (s.length() > 0)
-			sparqlQueryString2 += " " + s + " ";
+			sparqlQueryString2 += " " + cleanSparqlArgument(s) + " ";
 		else
 			sparqlQueryString2 += " ?miss ";
 		if (p.length() > 0)
-			sparqlQueryString2 += " " + p + " ";
+			sparqlQueryString2 += " " + cleanSparqlArgument(p) + " ";
 		else
 			sparqlQueryString2 += " ?miss ";
 		if (o.length() > 0)
-			sparqlQueryString2 += " " + o + " ";
+			sparqlQueryString2 += " " + cleanSparqlArgument(o) + " ";
 		else
 			sparqlQueryString2 += " ?miss ";
-
 		sparqlQueryString2 += "}";
-		// System.out.println(sparqlQueryString2);
-
+		
 		Query query2 = QueryFactory.create(sparqlQueryString2);
 		QueryExecution qexec2 = QueryExecutionFactory.create(query2, dataset);
 		ResultSet results2 = qexec2.execSelect();
 		for (; results2.hasNext();) {
 			QuerySolution soln = results2.nextSolution();
 			String strr = soln.get("miss").toString();
-			// System.out.println(strr);
 			arrResult.add(strr);
 		}
 		qexec2.close();
@@ -311,4 +308,14 @@ public class YagoLexicalResource implements LexicalResource {
 		}
 		return strPath;// ReturnReadableString(strPath);
 	}
+	
+	private static String cleanSparqlArgument(String str) {
+		if (str.length() >= 2) {
+			String filteredSubString = str.substring(1, str.length() - 1);
+			return str.substring(0, 1) + filteredSubString.replaceAll("\"", "") + str.substring(str.length() - 1, str.length());
+		} else {
+			return str;
+		}
+	}
+	
 }
