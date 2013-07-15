@@ -6,3 +6,4 @@ target/
 .classpath.orig
 .gitignore
 pom.xml.orig
+src/main/resources
