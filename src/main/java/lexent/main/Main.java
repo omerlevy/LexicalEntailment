@@ -10,8 +10,8 @@ import lexent.data.Text;
 import lexent.model.LexicalEntailmentModel;
 import lexent.resource.LexicalResource;
 import lexent.resource.context.ContextLexicalResource;
-import lexent.resource.dbpedia.DBPediaLexicalResource;
 import lexent.resource.esa.EsaLexicalResource;
+import lexent.resource.wordnet.WordnetLexicalResource;
 import lexent.resource.yago.YagoLexicalResource;
 
 public class Main {
@@ -20,36 +20,36 @@ public class Main {
 	 * @param args
 	 */
 	public static void main(String[] args) throws Exception {
-		if (args.length != 5) {
+		if (args.length != 6) {
 			System.exit(-1);
 		}
 		
 		String trainPath = args[0];
-		String testPath = args[1];
+//		String testPath = args[1]; // TODO DEBUG
+		String savePath = args[1];
 		String contextModelPath = args[2];
 		String esaModelPath = args[3];
 		String yagoModelPath = args[4];
+		String wordnetModelPath = args[5];
 		
 		Rte6DataReader reader = new Rte6DataReader();
 		List<Instance> train = reader.read(trainPath);
-		List<Instance> test = reader.read(testPath);
+//		List<Instance> test = reader.read(testPath); // TODO DEBUG
 		
-		List<LexicalResource> resources = initResources(contextModelPath, esaModelPath, yagoModelPath);
+		List<LexicalResource> resources = initResources(contextModelPath, esaModelPath, yagoModelPath, wordnetModelPath);
 		LexicalEntailmentModel model = new LexicalEntailmentModel(resources);
-		model.train(train);
+		model.train(train, savePath);
 		
-		Results results = evaluate(model, test);
-		print(results);
+//		Results results = evaluate(model, test); // TODO DEBUG
+//		print(results); // TODO DEBUG
 	}
 	
-	private static List<LexicalResource> initResources(String contextModelPath, String esaModelPath, String yagoModelPath) throws IOException {
+	private static List<LexicalResource> initResources(String contextModelPath, String esaModelPath, String yagoModelPath, String wordnetModelPath) throws IOException {
 		List<LexicalResource> resources = new ArrayList<>();
-		resources.add(new ContextLexicalResource(contextModelPath+"/context_wordtopic.txt", contextModelPath+"/context_slottopic.txt",
-				contextModelPath+"/context_rules.txt", 250, 0.01, 10));
+		resources.add(new ContextLexicalResource(contextModelPath+"/context_wordtopic.txt", contextModelPath+"/context_slottopic.txt", contextModelPath+"/context_rules.txt", 250, 0.01, 10));
 		resources.add(new EsaLexicalResource(esaModelPath));
-		resources.add(new YagoLexicalResource("\\\\qa-srv\\E\\cygwin\\home\\eden\\yago2core_20110315_jena\\yago2core_20110315_jena\\")); // TODO normalize yago path
-		resources.add(new DBPediaLexicalResource("\\\\qa-srv\\Data\\RESOURCES\\WordNet\\3.0\\dict.wn.orig")); // TODO normalize WN path
-		
+		resources.add(new YagoLexicalResource(yagoModelPath));
+		resources.add(new WordnetLexicalResource(wordnetModelPath)); 
 		return resources;
 	}
 	
