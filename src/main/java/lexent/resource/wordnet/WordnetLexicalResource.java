@@ -1,4 +1,4 @@
-package lexent.resource.dbpedia;
+package lexent.resource.wordnet;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -21,11 +21,11 @@ import edu.mit.jwi.item.IWordID;
 import edu.mit.jwi.item.POS;
 import edu.mit.jwi.item.Pointer;
 
-public class DBPediaLexicalResource implements LexicalResource {
+public class WordnetLexicalResource implements LexicalResource {
 
 	static String path = "\\\\qa-srv\\Data\\RESOURCES\\WordNet\\3.0\\dict.wn.orig";
 
-	public DBPediaLexicalResource(String dir) {
+	public WordnetLexicalResource(String dir) {
 		path = dir;
 		if (dict == null)
 			dict = GetDictionary();
@@ -91,10 +91,6 @@ public class DBPediaLexicalResource implements LexicalResource {
 	}
 
 	public static IDictionary GetDictionary() {
-		// String path =
-		// "/media/qa-srv/D/Data/RESOURCES/WordNet/3.0/dict.wn.orig";
-
-		// String path = "C:\\Users\\Ú„Ô\\Desktop\\Thesis\\dict.wn.orig";
 		URL url = null;
 		try {
 			url = new URL("file", null, path);
