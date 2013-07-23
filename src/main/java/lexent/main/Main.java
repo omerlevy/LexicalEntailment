@@ -65,11 +65,12 @@ public class Main {
 	private static Results evaluate(LexicalEntailmentModel model, List<Instance> test, Rte6ReportWriter reportWriter) throws Exception {
 		Results results = new Results();
 		for (Instance instance : test) {
-			for (Text text : instance.texts) {
+			for (Text text : instance.texts) {				
+				boolean classification = model.entails(text.sent, instance.hypo.sent, reportWriter);
 				if (text.entails != null) {
-					results.update(text.entails, model.entails(text.sent, instance.hypo.sent, reportWriter));
+					results.update(text.entails, classification);
 				}
-				if (reportWriter !=null) {
+				if ((reportWriter !=null) && (classification == true)){
 					reportWriter.writeResult(instance.topic, Integer.toString(instance.hypo.id), text.docId, Integer.toString(text.sentId));
 				}
 			}
