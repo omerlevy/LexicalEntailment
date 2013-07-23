@@ -75,6 +75,11 @@ public class WordnetLexicalResource implements LexicalResource {
 			throw new LexicalResourceException("Non-nouns: " + _t + " " + _h);
 		}
 	}
+	
+	@Override
+	public String getResourceName() {
+		return "WordNetLexicalResource";
+	}
 
 	public boolean AreInSameSynset(String lemma1, String lemma2) {
 		if (dict == null)

@@ -54,5 +54,10 @@ public class ContextLexicalResource implements LexicalResource {
 		}
 		
 	}
+
+	@Override
+	public String getResourceName() {
+		return "ContextSensitiveVerbsLexicalResource";
+	}
 	
 }

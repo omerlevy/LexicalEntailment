@@ -62,6 +62,11 @@ public class YagoLexicalResource implements LexicalResource {
 			throw new LexicalResourceException("Non-nouns: " + _t + " " + _h);
 		}
 	}
+	
+	@Override
+	public String getResourceName() {
+		return "YagoLexicalResource";
+	}
 
 	public static ArrayList<String> GetResultsFromLeft(String strName,
 			Dataset dataset) {

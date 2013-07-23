@@ -32,6 +32,12 @@ public class EsaLexicalResource implements LexicalResource {
 		}
 	}
 	
+	
+	@Override
+	public String getResourceName() {
+		return "ExplicitSemanticAnalysisLexicalResource";
+	}
+	
 	private VectorComparator esa;
 	
 }

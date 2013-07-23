@@ -8,6 +8,7 @@ import java.util.List;
 
 import lexent.data.Hypothesis;
 import lexent.data.Instance;
+import lexent.data.Rte6ReportWriter;
 import lexent.data.Sentence;
 import lexent.data.Text;
 import lexent.data.Word;
@@ -36,16 +37,16 @@ public class LexicalEntailmentModel {
 		learnModel(trainingData, savePath);
 	}
 	
-	public boolean entails(Sentence text, Sentence hypo) throws Exception {
+	public boolean entails(Sentence text, Sentence hypo, Rte6ReportWriter reportWriter) throws Exception {
 		if (model == null) {
 			throw new NullPointerException("Model not instantiated!");
 		}
 		
-		double answer = model.classifyInstance(new DenseInstance(1.0, toArray(generateFeatureVector(text, hypo))));
+		double answer = model.classifyInstance(new DenseInstance(1.0, toArray(generateFeatureVector(text, hypo, reportWriter))));
 		return answer == TRUE;
 	}
 	
-	private double probResourceEntails(LexicalResource resource, Sentence text, Sentence hypo) {
+	private double probResourceEntails(LexicalResource resource, Sentence text, Sentence hypo, Rte6ReportWriter reportWriter) throws IOException {
 		double avgProb = 0.0;
 		int numWords = 0;
 		
@@ -55,6 +56,11 @@ public class LexicalEntailmentModel {
 				try {
 					double prob = resource.probEntails(t, h, text.context);
 					maxProb = prob > maxProb ? prob : maxProb;
+					
+					// If probability is greater than 50% then we consider as if this rule has been applied for the purpose of reporting.
+					if ((reportWriter != null) && (prob >= 0.5)) {
+						reportWriter.writeRuleApp(t.lemma, h.lemma, resource.getResourceName());					
+					}
 				} catch (LexicalResourceException e) {
 					// Do nothing.
 				}
@@ -72,12 +78,12 @@ public class LexicalEntailmentModel {
 		}
 	}
 	
-	private List<List<Double>> generateTrainingData(List<Instance> train) {
+	private List<List<Double>> generateTrainingData(List<Instance> train) throws IOException {
 		List<List<Double>> trainingData = new ArrayList<>();
 		for (Instance instance : train) {
 			Hypothesis hypo = instance.hypo;
 			for (Text text : instance.texts) {
-				List<Double> featureVector = generateFeatureVector(text.sent, hypo.sent);
+				List<Double> featureVector = generateFeatureVector(text.sent, hypo.sent, null);
 				if (text.entails) {
 					featureVector.add(TRUE);
 				} else {
@@ -89,10 +95,10 @@ public class LexicalEntailmentModel {
 		return trainingData;
 	}
 	
-	private List<Double> generateFeatureVector(Sentence text, Sentence hypo) {
+	private List<Double> generateFeatureVector(Sentence text, Sentence hypo, Rte6ReportWriter reportWriter) throws IOException {
 		List<Double> featureVector = new ArrayList<>();
 		for (LexicalResource resource : resources) {
-			featureVector.add(probResourceEntails(resource, text, hypo));
+			featureVector.add(probResourceEntails(resource, text, hypo, reportWriter));
 		}
 		return featureVector;
 	}

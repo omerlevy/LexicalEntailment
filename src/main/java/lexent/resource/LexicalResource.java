@@ -18,4 +18,10 @@ public interface LexicalResource {
 	 */
 	public double probEntails(Word t, Word h, LocalContext context) throws LexicalResourceException;
 	
+	/**
+	 * Get the name that identifies this resource (e.g. WordNet)
+	 * @return
+	 */
+	public String getResourceName();
+	
 }

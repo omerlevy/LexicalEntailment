@@ -6,6 +6,7 @@ import java.util.List;
 
 import lexent.data.Instance;
 import lexent.data.Rte6DataReader;
+import lexent.data.Rte6ReportWriter;
 import lexent.data.Text;
 import lexent.model.LexicalEntailmentModel;
 import lexent.resource.LexicalResource;
@@ -20,28 +21,36 @@ public class Main {
 	 * @param args
 	 */
 	public static void main(String[] args) throws Exception {
-		if (args.length != 6) {
+		if (args.length != 7) {
 			System.exit(-1);
 		}
 		
 		String trainPath = args[0];
-//		String testPath = args[1]; // TODO DEBUG
+		String testPath = args[1]; // TODO DEBUG
 		String savePath = args[1];
 		String contextModelPath = args[2];
 		String esaModelPath = args[3];
 		String yagoModelPath = args[4];
 		String wordnetModelPath = args[5];
+		String reportDir = args[6];
 		
 		Rte6DataReader reader = new Rte6DataReader();
 		List<Instance> train = reader.read(trainPath);
-//		List<Instance> test = reader.read(testPath); // TODO DEBUG
+		List<Instance> test = reader.read(testPath); // TODO DEBUG
 		
 		List<LexicalResource> resources = initResources(contextModelPath, esaModelPath, yagoModelPath, wordnetModelPath);
 		LexicalEntailmentModel model = new LexicalEntailmentModel(resources);
 		model.train(train, savePath);
 		
-//		Results results = evaluate(model, test); // TODO DEBUG
-//		print(results); // TODO DEBUG
+		Rte6ReportWriter reportWriter = new Rte6ReportWriter(reportDir+"\\dev_results.txt", reportDir+"\\dev_rule_applications.txt");
+		Results results = evaluate(model, train, reportWriter); // TODO DEBUG
+		reportWriter.close();
+		print(results); // TODO DEBUG
+		
+		reportWriter = new Rte6ReportWriter(reportDir+"\\test_results.txt", reportDir+"\\test_rule_applications.txt");
+		evaluate(model, test, reportWriter); // We run this for reporting purposes. TODO DEBUG
+		reportWriter.close();
+		
 	}
 	
 	private static List<LexicalResource> initResources(String contextModelPath, String esaModelPath, String yagoModelPath, String wordnetModelPath) throws IOException {
@@ -53,11 +62,16 @@ public class Main {
 		return resources;
 	}
 	
-	private static Results evaluate(LexicalEntailmentModel model, List<Instance> test) throws Exception {
+	private static Results evaluate(LexicalEntailmentModel model, List<Instance> test, Rte6ReportWriter reportWriter) throws Exception {
 		Results results = new Results();
 		for (Instance instance : test) {
 			for (Text text : instance.texts) {
-				results.update(text.entails, model.entails(text.sent, instance.hypo.sent));
+				if (text.entails != null) {
+					results.update(text.entails, model.entails(text.sent, instance.hypo.sent, reportWriter));
+				}
+				if (reportWriter !=null) {
+					reportWriter.writeResult(instance.topic, Integer.toString(instance.hypo.id), text.docId, Integer.toString(text.sentId));
+				}
 			}
 		}
 		return results;
