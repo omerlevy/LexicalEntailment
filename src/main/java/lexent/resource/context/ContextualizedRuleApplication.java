@@ -45,8 +45,10 @@ public class ContextualizedRuleApplication {
 		
 		int size = TOP_RELEVANT;
 		Set<String> candidateSet = null;
+		String rhsPredicate = "NA";
+		String rhsReverseRule = "n";
 		while(true) {
-			System.out.println("\nEnter tuple <argumentX><tab><predicate><tab><argumentY>:");
+			System.out.println("\nEnter tuple <argumentX><tab><lhs-predicate><tab><argumentY>:");
 			BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
 
 			String lhsTuple = input.readLine();
@@ -55,6 +57,16 @@ public class ContextualizedRuleApplication {
 			}
 			if (lhsTuple.startsWith("size=")) {
 				size = Integer.parseInt(lhsTuple.split("=")[1]);
+				continue;
+			}
+			
+			if (lhsTuple.startsWith("rhs=")) {
+				rhsPredicate = lhsTuple.split("=")[1];
+				continue;
+			}
+			
+			if (lhsTuple.startsWith("rhs-reverse=")) {
+				rhsReverseRule = lhsTuple.split("=")[1];
 				continue;
 			}
 			
@@ -71,13 +83,26 @@ public class ContextualizedRuleApplication {
 				continue;
 			}
 			
-			List<WTRule> dirtInferredResult = new LinkedList<WTRule>();		
-			List<WTRule> wtInferredResult = new LinkedList<WTRule>();
-			app.findTopInferred(lhsTuple,size,dirtInferredResult,wtInferredResult, candidateSet);
-			System.out.println();
-			app.printInferred("DIRT",lhsTuple, dirtInferredResult);
-			System.out.println();
-			app.printInferred("WT",lhsTuple, wtInferredResult);
+			if (!rhsPredicate.equals("NA")) {
+				String[] tokens = lhsTuple.split("\t");
+				double wtScore = app.calcWTScore(tokens[1], rhsPredicate, tokens[0], tokens[2], (rhsReverseRule.equals("y")));
+				double dirtScore = app.calcDirtScore(tokens[1], rhsPredicate, (rhsReverseRule.equals("y")));
+				String rhsTemplate;
+				if (rhsReverseRule.endsWith("y")) {
+					rhsTemplate = app.toReversePredTemplate(rhsPredicate);
+				} else{
+					rhsTemplate = app.toPredTemplate(rhsPredicate);
+				}
+				System.out.println(rhsTemplate + "\tWTScore=" + wtScore + "\tDirtScore=" + dirtScore);
+			} else {
+				List<WTRule> dirtInferredResult = new LinkedList<WTRule>();		
+				List<WTRule> wtInferredResult = new LinkedList<WTRule>();
+				app.findTopInferred(lhsTuple,size,dirtInferredResult,wtInferredResult, candidateSet);
+				System.out.println();
+				app.printInferred("DIRT",lhsTuple, dirtInferredResult);
+				System.out.println();
+				app.printInferred("WT",lhsTuple, wtInferredResult);
+			}
 		}
 		
 		System.out.println("\nApplication terminated.\n");
@@ -96,14 +121,91 @@ public class ContextualizedRuleApplication {
 		this.topRelevantInferred = topRelevantInferred;
 		readRuleResources(wordTopicFileName, slotTopicFileName, wtRuleFileName, maxRules, minScore, ignoreReverseRules);		
 	}
+	
+	/**
+	 * 
+	 * Computes a word-topic context sensitive score for a rule application.
+	 * @param tPred: text predicate
+	 * @param hPred: hypothesis predicate
+	 * @param xContext: context words side X (space separated lowercase lemmatized words)
+	 * @param yContext: context words side Y (space separated lowercase lemmatized words)
+	 * @param isReverseRule: if true then the reverse rule is considered [X,u,Y]->[Y,v,X]
+	 * @return score between 0 to 1, or -1 if predicates are not in the database or an error occurred.
+	 */
+	public double calcWTScore(String tPred, String hPred, String xContext, String yContext, boolean isReverseRule) {
+		
+		double score;
+
+		if (!isInDatabase(tPred, hPred)) {
+			return -1;
+		}
+
+		String argX = xContext;
+		String argY = yContext;
+		if (argX.equals("")) {
+			argX = "NotAvailable";			 
+		}
+		if (argY.equals("")) {
+			argY = "NotAvailable";			 
+		}
+
+		List<Double> TopicDistributionX = computeTopicDistribution(tPred+":X", argX.split(" "));
+		List<Double> TopicDistributionY = computeTopicDistribution(tPred+":Y", argY.split(" "));
+
+		String lhsPredTemplate = toPredTemplate(tPred);
+		String rhsPredTemplate = isReverseRule ? toReversePredTemplate(hPred) : toPredTemplate(hPred);
+
+		Map<String,WTRule> rules = ruleTable.getRulesPerGivenLhs(lhsPredTemplate);
+		if (rules.containsKey(rhsPredTemplate)){
+			WTRule rule = rules.get(rhsPredTemplate);
+			double wtScoreX = computeWTScore(TopicDistributionX, rule.wtScoresX);
+			double wtScoreY = computeWTScore(TopicDistributionY, rule.wtScoresY);
+			score = Math.sqrt(wtScoreX*wtScoreY);
+		} else {
+			score = 0;
+		}
+
+		return score;	
+	}
+	
+	
+	/**
+	 * Retrieves the context insensitive DIRT score for a rule application.
+	 * @param tPred: text predicate
+	 * @param hPred: hypothesis predicate
+	 * @param isReverseRule: if true then the reverse rule is considered [X,u,Y]->[Y,v,X]
+	 * @return score between 0 to 1, or -1 if predicates are not in the database or an error occurred.
+	 */
+	public double calcDirtScore(String tPred, String hPred, boolean isReverseRule) {
+	
+		double score;
+
+		if (!isInDatabase(tPred, hPred)) {
+			return -1;
+		}
+
+		String lhsPredTemplate = toPredTemplate(tPred);
+		String rhsPredTemplate = isReverseRule ? toReversePredTemplate(hPred) : toPredTemplate(hPred);
+
+		Map<String,WTRule> rules = ruleTable.getRulesPerGivenLhs(lhsPredTemplate);
+		if (rules.containsKey(rhsPredTemplate)){
+			WTRule rule = rules.get(rhsPredTemplate);
+			score = rule.dirtScore;
+		} else {
+			score = 0;
+		}
+
+		return score;	
+	}
+
 
 	/**
 	 * Computes a word-topic context sensitive rank based score for a rule application.
 	 * Rank based score equals the rank of hPred in tPred's top inferred predicates divided by topRelevantInferred.
 	 * @param tPred: text predicate
 	 * @param hPred: hypothesis predicate
-	 * @param xContext: context words side X (space separated words)
-	 * @param yContext: context words side Y (space separated words)
+	 * @param xContext: context words side X (space separated lowercase lemmatized words)
+	 * @param yContext: context words side Y (space separated lowercase lemmatized words)
 	 * @return score between 0 to 1, or -1 if predicates are not in the database or an error occurred.
 	 */
 	public double calcWTRankScore(String tPred, String hPred, String xContext, String yContext) {
@@ -144,7 +246,7 @@ public class ContextualizedRuleApplication {
 		List<WTRule> dirtInferredResult = new LinkedList<WTRule>();		
 		List<WTRule> wtInferredResult = new LinkedList<WTRule>();
 
-		findTopInferred("NA\t" + tPred + "\tNA" , TOP_RELEVANT, dirtInferredResult, wtInferredResult, null);
+		findTopInferred("NotAvailable\t" + tPred + "\tNotAvailable" , TOP_RELEVANT, dirtInferredResult, wtInferredResult, null);
 
 		if (dirtInferredResult.size()>0) {
 			return 1-((double) getRank(dirtInferredResult, toPredTemplate(hPred)) / dirtInferredResult.size());
@@ -229,7 +331,7 @@ public class ContextualizedRuleApplication {
 //			double wtRankScore = calcWTRankScore(fromPredTemplate(rule.lhsPredicate), fromPredTemplate(rule.rhsPredicate), xContext, yContext);
 //			double dirtRankScore = calcDirtRankScore(fromPredTemplate(rule.lhsPredicate), fromPredTemplate(rule.rhsPredicate));
 //			System.out.println(rule.rhsPredicate + "\tdirt="+rule.dirtScore + "\tdirt_rank="+dirtRankScore + "\twt="+rule.wtScore + "\twt_rank="+wtRankScore);							
-			System.out.println(rule.rhsPredicate + "\tdirt="+rule.dirtScore + "\twt="+rule.wtScore);
+			System.out.println(rule.rhsPredicate + "\twt="+rule.wtScore + "\tdirt="+rule.dirtScore);
 		}		
 	}
 	
@@ -252,6 +354,10 @@ public class ContextualizedRuleApplication {
 	
 	protected String toPredTemplate(String pred) {
 		return "X " + pred + " Y";
+	}
+	
+	protected String toReversePredTemplate(String pred) {
+		return "Y " + pred + " X";
 	}
 	
 	protected String fromPredTemplate(String predTemplate) {
