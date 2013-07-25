@@ -2,7 +2,7 @@ package lexent.resource.context;
 
 /**
  * @author Oren Melamud
- * This class computes context sensitive rule application scores based on word-topic rules described at:
+ * This class derives context sensitive rule application scores based on word-topic rules described at:
  * http://u.cs.biu.ac.il/~nlp/downloads/wt-rules.html
  *
  */
@@ -23,23 +23,304 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
 
-/**
- * 
- */
-
-
 public class ContextualizedRuleApplication {
 	
 	
+	private static final int TOP_RELEVANT = 10;	// default number of top relevant inferred predicates
+		
+	/*	Interactive utility to play with rule applications. */
+	public static void main(String[] args) throws IOException {
+		
+		if (args.length < 5) {
+			System.out.println("Usage: ContextualizedRuleApplication <word-prob-given-topic-filename> <topic-prob-given-slot-filename> <wt-rules-filename> <max-rules-per-lhs-predicate> <min-rule-score> <ignoreReverseRules y/n>");
+			System.exit(1);
+		}
+		
+		boolean ignoreReverseRules = args[5].equals("y");
+		
+		System.out.println("Topic Word Context Sensitive Predicate Inference Rule Application is initializing.");
+		ContextualizedRuleApplication app = new ContextualizedRuleApplication(args[0], args[1], args[2], 
+				Integer.parseInt(args[3]), Double.parseDouble(args[4]), ignoreReverseRules, TOP_RELEVANT);
+		System.out.println("\nApplication is ready. \nPress q and enter to quit at any time.");
+		
+		int size = TOP_RELEVANT;
+		Set<String> candidateSet = null;
+		while(true) {
+			System.out.println("\nEnter tuple <argumentX><tab><predicate><tab><argumentY>:");
+			BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
+
+			String lhsTuple = input.readLine();
+			if (lhsTuple.equals("q")) {
+				break;
+			}
+			if (lhsTuple.startsWith("size=")) {
+				size = Integer.parseInt(lhsTuple.split("=")[1]);
+				continue;
+			}
+			
+			if (lhsTuple.startsWith("candidates=")) {
+				String candidatesString = lhsTuple.split("=")[1];
+				if (candidatesString.equals("null")) {
+					candidateSet=null;
+				}
+				String[] tokens = candidatesString.split(" ");
+				candidateSet = new HashSet<String>();
+				for (String tok : tokens) {
+					candidateSet.add(tok);
+				}
+				continue;
+			}
+			
+			List<WTRule> dirtInferredResult = new LinkedList<WTRule>();		
+			List<WTRule> wtInferredResult = new LinkedList<WTRule>();
+			app.findTopInferred(lhsTuple,size,dirtInferredResult,wtInferredResult, candidateSet);
+			System.out.println();
+			app.printInferred("DIRT",lhsTuple, dirtInferredResult);
+			System.out.println();
+			app.printInferred("WT",lhsTuple, wtInferredResult);
+		}
+		
+		System.out.println("\nApplication terminated.\n");
+				
+	}
+
+	/* The elements of a topic-word rule set release. */
+	private WordProbGivenTopic wordTable;	// p(word|topic)
+	private TopicProbGivenSlot slotTable;	// p(topic|slot)
+	private WTRuleSet ruleTable;			// context sensitive rules
+	
+	/* Config params. */
+	private int topRelevantInferred;		// number of top ranking relevant inferred predicates per inferring predicate
+
+	public ContextualizedRuleApplication(String wordTopicFileName, String slotTopicFileName, String wtRuleFileName, int maxRules, double minScore, boolean ignoreReverseRules, int topRelevantInferred) throws IOException {
+		this.topRelevantInferred = topRelevantInferred;
+		readRuleResources(wordTopicFileName, slotTopicFileName, wtRuleFileName, maxRules, minScore, ignoreReverseRules);		
+	}
+
+	/**
+	 * Computes a word-topic context sensitive rank based score for a rule application.
+	 * Rank based score equals the rank of hPred in tPred's top inferred predicates divided by topRelevantInferred.
+	 * @param tPred: text predicate
+	 * @param hPred: hypothesis predicate
+	 * @param xContext: context words side X (space separated words)
+	 * @param yContext: context words side Y (space separated words)
+	 * @return score between 0 to 1, or -1 if predicates are not in the database or an error occurred.
+	 */
+	public double calcWTRankScore(String tPred, String hPred, String xContext, String yContext) {
+
+		List<WTRule> dirtInferredResult = new LinkedList<WTRule>();		
+		List<WTRule> wtInferredResult = new LinkedList<WTRule>();
+		
+		if (!isInDatabase(tPred, hPred)) {
+			return -1;
+		}
+		
+		if (xContext.equals("")) {
+			xContext = "NotAvailable";			 
+		}
+		
+		if (yContext.equals("")) {
+			yContext = "NotAvailable";			 
+		}
+
+		findTopInferred(xContext + "\t" + tPred + "\t" + yContext, this.topRelevantInferred, dirtInferredResult, wtInferredResult, null);
+
+		if (wtInferredResult.size() > 0 ) {
+			return 1-((double) getRank(wtInferredResult, toPredTemplate(hPred)) / wtInferredResult.size());
+		} else {
+			return 0;
+		}		
+	}
+
+	/**
+	 * Computes a dirt-based (context insensitive score for a rule application).
+	 * Rank based score equals the rank of hPred in tPred's top inferred predicates divided by topRelevantInferred.
+	 * @param tPred: text predicate
+	 * @param hPred: hypothesis predicate
+	 * @return score between 0 to 1.
+	 */
+	public double calcDirtRankScore(String tPred, String hPred) {
+
+		List<WTRule> dirtInferredResult = new LinkedList<WTRule>();		
+		List<WTRule> wtInferredResult = new LinkedList<WTRule>();
+
+		findTopInferred("NA\t" + tPred + "\tNA" , TOP_RELEVANT, dirtInferredResult, wtInferredResult, null);
+
+		if (dirtInferredResult.size()>0) {
+			return 1-((double) getRank(dirtInferredResult, toPredTemplate(hPred)) / dirtInferredResult.size());
+		} else {
+			return 0;
+		}		
+
+	}
+	
+	public boolean isInDatabase(String lhsPred, String rhsPred) {
+
+		Map<String,WTRule> rulesLhs = ruleTable.getRulesPerGivenLhs(toPredTemplate(lhsPred));
+		Map<String,WTRule> rulesRhs = ruleTable.getRulesPerGivenLhs(toPredTemplate(rhsPred));
+
+		return ((rulesLhs != null) && (rulesRhs != null)); 
+	}
+
+
+	public void findTopInferred(String lhsTuple, int size, List<WTRule> dirtInferredResult, List<WTRule> wtInferredResult, Set<String> candidates){
+		
+		String[] tokens = lhsTuple.split("\t");
+		if (tokens.length<3) {
+			System.out.print("Invalid input.\n");
+			return;
+		}
+		
+		
+		String argX = tokens[0];
+		String lhsPredTemplate = toPredTemplate(tokens[1]);
+		String argY = tokens[2];
+		
+		List<Double> TopicDistributionX = computeTopicDistribution(tokens[1]+":X", argX.split(" "));
+		List<Double> TopicDistributionY = computeTopicDistribution(tokens[1]+":Y", argY.split(" "));
+		
+		PriorityQueue<WTRule> dirtInferred = new PriorityQueue<WTRule>(size, new DirtScoreComparator());
+		PriorityQueue<WTRule> wtInferred = new PriorityQueue<WTRule>(size, new WTScoreComparator());
+		
+		Map<String,WTRule> rules = ruleTable.getRulesPerGivenLhs(lhsPredTemplate);
+		if (rules == null) {
+			return;
+		}
+		for (Map.Entry<String,WTRule> ruleEntry : rules.entrySet()) {
+			WTRule rule = ruleEntry.getValue();
+			if ((candidates != null) && (!candidates.contains(rule.rhsPredicate.split(" ")[1]))) {
+				continue;
+			}
+						
+			double wtScoreX = computeWTScore(TopicDistributionX, rule.wtScoresX);
+			double wtScoreY = computeWTScore(TopicDistributionY, rule.wtScoresY);
+			rule.wtScore = Math.sqrt(wtScoreX*wtScoreY);
+			dirtInferred.add(rule);
+			if (dirtInferred.size()>size) {
+				dirtInferred.poll();
+			}			
+			wtInferred.add(rule);
+			if (wtInferred.size()>size) {
+				wtInferred.poll();
+			}
+		}
+				
+		while(!dirtInferred.isEmpty()) {
+			dirtInferredResult.add(0,dirtInferred.poll());
+		}
+		while(!wtInferred.isEmpty()) {
+			wtInferredResult.add(0,wtInferred.poll());
+		}
+		
+	}
+	
+	protected void printInferred(String method, String lhsTuple, List<WTRule> rules) {		
+		System.out.println("Top " + method + " substitutes for: " + lhsTuple + "\n");
+
+		if (lhsTuple.split("\t").length != 3) {
+			System.out.print("Invalid lhsTuple\n");
+			return;
+		}
+
+		String xContext = lhsTuple.split("\t")[0];
+		String yContext = lhsTuple.split("\t")[2];
+		for (WTRule rule : rules) {	
+//			for debug only:
+//			double wtRankScore = calcWTRankScore(fromPredTemplate(rule.lhsPredicate), fromPredTemplate(rule.rhsPredicate), xContext, yContext);
+//			double dirtRankScore = calcDirtRankScore(fromPredTemplate(rule.lhsPredicate), fromPredTemplate(rule.rhsPredicate));
+//			System.out.println(rule.rhsPredicate + "\tdirt="+rule.dirtScore + "\tdirt_rank="+dirtRankScore + "\twt="+rule.wtScore + "\twt_rank="+wtRankScore);							
+			System.out.println(rule.rhsPredicate + "\tdirt="+rule.dirtScore + "\twt="+rule.wtScore);
+		}		
+	}
+	
+	protected void readRuleResources(String wordTopicFileName, String slotTopicFileName, String wtRuleFileName, int maxRules, double minScore, boolean ignoreReverseRules) throws IOException {
+		wordTable = new WordProbGivenTopic(wordTopicFileName);
+		slotTable = new TopicProbGivenSlot(slotTopicFileName);
+		ruleTable = new WTRuleSet(wtRuleFileName, maxRules, minScore, ignoreReverseRules);
+	}
+	
+	protected int getTopicNum() {
+		return wordTable.probabilities.size();
+	}
+	
+	
+	protected void pointwiseAdd(List<Double> a, List<Double> b) {
+		for (int i=0; i<a.size(); i++){
+			a.set(i, a.get(i) + b.get(i));
+		}		
+	}
+	
+	protected String toPredTemplate(String pred) {
+		return "X " + pred + " Y";
+	}
+	
+	protected String fromPredTemplate(String predTemplate) {
+		return predTemplate.substring(2, predTemplate.length()-2);
+	}
+	
+	
+	
+	protected List<Double> computeTopicDistribution(String slot, String[] args) {
+		List<Double> topicDist = new ArrayList<Double>(Collections.nCopies(this.getTopicNum(), 0d));
+		
+		for (String arg : args) {
+			pointwiseAdd(topicDist, computeTopicDistribution(slot, arg));
+		}
+		
+		for (int t=0; t<this.getTopicNum(); t++){
+			topicDist.set(t, topicDist.get(t)/args.length);
+		}		
+		return topicDist;
+		
+	}
+	
+	protected List<Double> computeTopicDistribution(String slot, String arg) {
+		
+		List<Double> topicDist = new ArrayList<Double>(this.getTopicNum());
+		double normFactor = 0;
+		for (int t=0; t<this.getTopicNum(); t++){
+			double prob = slotTable.getProb(slot, t)*wordTable.getProb(arg, t);
+			topicDist.add(prob);
+			normFactor += prob;
+		}
+
+		for (int t=0; t<this.getTopicNum(); t++){
+			topicDist.set(t, topicDist.get(t)/normFactor);
+		}		
+		return topicDist;		
+	}
+	
+	protected double computeWTScore(List<Double> topicDist, Map<Integer, Double> wtScores) {
+		
+		double score = 0;
+		for (int t=0; t<topicDist.size();t++) {
+			if (wtScores.containsKey(t)) {
+				score += topicDist.get(t)*wtScores.get(t);
+			}
+		}
+		return score;
+	}
+	
+	protected int getRank(List<WTRule> rules, String rhsPred) {
+		
+		int i=0;
+		for (i=0; i<rules.size(); i++) {
+			if (rules.get(i).rhsPredicate.equals(rhsPred)) {
+				break;
+			}
+		}		
+		return i;		
+	}
+	
+	/*----------------*/
 	/* Helper classes */
 	/*----------------*/
-
 
 	/* p(word|topic) */
 	class WordProbGivenTopic {
 
-		List<Double> zeroCountProb;
-		List<Map<String, Double>> probabilities;
+		private List<Double> zeroCountProb;
+		private List<Map<String, Double>> probabilities;
 
 		public WordProbGivenTopic(String fileName) throws IOException {
 			
@@ -59,7 +340,7 @@ public class ContextualizedRuleApplication {
 			for (int i=0; i<topicNum; i++) {
 				line = reader.readLine();
 				String[] tokens = line.split("\t");
-				int topicId = Integer.parseInt(tokens[0]);
+//				int topicId = Integer.parseInt(tokens[0]);
 				double prob = Double.parseDouble(tokens[2]);
 				zeroCountProb.add(prob);
 			}
@@ -76,7 +357,7 @@ public class ContextualizedRuleApplication {
 			reader.close();
 		}
 		
-		double getProb(String word, int topic) {
+		public double getProb(String word, int topic) {
 			if ((topic < 0) || (topic >= probabilities.size())) {
 				return -1;
 			}
@@ -85,7 +366,6 @@ public class ContextualizedRuleApplication {
 			if (probMap.containsKey(word)) {
 				return probMap.get(word);
 			} else {
-//				System.out.println("Using zero-count prob for word: " + word + " in topic: " + topic);
 				return zeroCountProb.get(topic);
 			}
 		}
@@ -95,8 +375,8 @@ public class ContextualizedRuleApplication {
 	/* p(topic|slot) */
 	class TopicProbGivenSlot {
 		
-		Map<String, Double> zeroCountProb;
-		Map<String, Map<Integer, Double>> probabilities;
+		private Map<String, Double> zeroCountProb;
+		private Map<String, Map<Integer, Double>> probabilities;
 		
 		public TopicProbGivenSlot(String fileName) throws IOException {
 			
@@ -155,25 +435,23 @@ public class ContextualizedRuleApplication {
 	
 	
 	/* A context sensitive rule. */
-	class TwRule {
+	class WTRule {
 		
-		String ruleType;
-		String lhsPredicate;
-		String rhsPredicate;
-		double dirtScore;
-		double dirtScoreX;
-		double dirtScoreY;
-		Map<Integer, Double> twScoresX;
-		Map<Integer, Double> twScoresY;		
-		double twScore;	// context sensitive rule application score
+		private String ruleType;
+		private String lhsPredicate;
+		private String rhsPredicate;
+		private double dirtScore;
+		private double dirtScoreX;
+		private double dirtScoreY;
+		private Map<Integer, Double> wtScoresX;
+		private Map<Integer, Double> wtScoresY;		
+		private double wtScore;	// context sensitive rule application score			
 		
-	
-		
-		public TwRule(BufferedReader reader) throws IOException {
+		public WTRule(BufferedReader reader) throws IOException {
 			read(reader);
 		}
 		
-		void read(BufferedReader reader) throws IOException {
+		public void read(BufferedReader reader) throws IOException {
 			
 			String line = reader.readLine();
 			if (line == null) {
@@ -187,13 +465,13 @@ public class ContextualizedRuleApplication {
 			dirtScoreX = Double.parseDouble(tokens[4]);
 			dirtScoreY = Double.parseDouble(tokens[5]);	
 			
-			twScore = -1;
-			twScoresX = readTwScores(reader.readLine());
-			twScoresY = readTwScores(reader.readLine());
+			wtScore = -1;
+			wtScoresX = readWTScores(reader.readLine());
+			wtScoresY = readWTScores(reader.readLine());
 					
 		}
 		
-		Map<Integer, Double> readTwScores(String line) {
+		protected Map<Integer, Double> readWTScores(String line) {
 			
 			Map<Integer, Double> scores = new HashMap<Integer, Double>();
 			if (line.equals("")) {
@@ -212,11 +490,11 @@ public class ContextualizedRuleApplication {
 		
 		@Override
 		public String toString() {
-			return "TwRule [ruleType=" + ruleType + ", lhsPredicate="
+			return "WTRule [ruleType=" + ruleType + ", lhsPredicate="
 					+ lhsPredicate + ", rhsPredicate=" + rhsPredicate
 					+ ", dirtScore=" + dirtScore + ", dirtScoreX=" + dirtScoreX
-					+ ", dirtScoreY=" + dirtScoreY + ", twScoresX=" + twScoresX
-					+ ", twScoresY=" + twScoresY
+					+ ", dirtScoreY=" + dirtScoreY + ", wtScoresX=" + wtScoresX
+					+ ", wtScoresY=" + wtScoresY
 					+ "]";
 		}
 				
@@ -224,41 +502,47 @@ public class ContextualizedRuleApplication {
 	
 	
 	/* Compares rules according to their dirt score. */
-	public class DirtScoreComparator implements Comparator<TwRule> {
+	public class DirtScoreComparator implements Comparator<WTRule> {
 		@Override
-		public int compare(TwRule r1, TwRule r2) {
+		public int compare(WTRule r1, WTRule r2) {
 			return Double.compare(r1.dirtScore, r2.dirtScore);
 		}		
 	}
 	
 	/* Compares rules according to their context sensitive score. */
-	public class TwScoreComparator implements Comparator<TwRule> {
+	public class WTScoreComparator implements Comparator<WTRule> {
 		@Override
-		public int compare(TwRule r1, TwRule r2) {
-			return Double.compare(r1.twScore, r2.twScore);
+		public int compare(WTRule r1, WTRule r2) {
+			return Double.compare(r1.wtScore, r2.wtScore);
 		}		
 	}
 
 	
 	/*	A rule set knowledge resource. */
-	class TwRuleSet {
+	class WTRuleSet {
 		
-		private Map<String, Map<String,TwRule>> rules;
+		// Maps between an lhs predicate to a map of rhs predicates and their respective rule
+		private Map<String, Map<String,WTRule>> rules;
+		
+		boolean ignoreReverseRules;
 
-		public TwRuleSet(String fileName, int maxRules, double minScore) throws IOException {
+		public WTRuleSet(String fileName, int maxRules, double minScore, boolean ignoreReverseRules) throws IOException {
+			
+			this.ignoreReverseRules = ignoreReverseRules;
 			
 			System.out.println("Reading file: " + fileName);
 
-			rules = new HashMap<String, Map<String,TwRule>>();
+			rules = new HashMap<String, Map<String,WTRule>>();
 			BufferedReader reader = new BufferedReader(new FileReader(fileName));
 			int i=0;
 			int j=0;
 			String lastReadLhsPredicate = null;
 			try {
 				while (true) {
-
-					TwRule rule = new TwRule(reader);
-//					if ((rule.dirtScore < minScore) || (rule.rhsPredicate.startsWith("Y"))) {
+					WTRule rule = new WTRule(reader);
+					if (this.ignoreReverseRules && (rule.rhsPredicate.startsWith("Y"))) {
+						continue;
+					}
 					if (rule.dirtScore < minScore) {
 						continue;
 					}
@@ -267,11 +551,11 @@ public class ContextualizedRuleApplication {
 						lastReadLhsPredicate = rule.lhsPredicate;
 					}
 					if (j<maxRules) {
-						Map<String,TwRule> rulesPerGivenLhs;
+						Map<String,WTRule> rulesPerGivenLhs;
 						if (rules.containsKey(rule.lhsPredicate)) {
 							rulesPerGivenLhs = rules.get(rule.lhsPredicate);
 						} else {
-							rulesPerGivenLhs = new HashMap<String, TwRule>();
+							rulesPerGivenLhs = new HashMap<String, WTRule>();
 							rules.put(rule.lhsPredicate, rulesPerGivenLhs);
 						}
 						rulesPerGivenLhs.put(rule.rhsPredicate, rule);
@@ -291,7 +575,7 @@ public class ContextualizedRuleApplication {
 			
 		}
 		
-		public Map<String,TwRule> getRulesPerGivenLhs(String lhsPredicate) {
+		public Map<String,WTRule> getRulesPerGivenLhs(String lhsPredicate) {
 			if (rules.containsKey(lhsPredicate)) {
 				return rules.get(lhsPredicate);				
 			} else {			
@@ -299,10 +583,10 @@ public class ContextualizedRuleApplication {
 			}
 		}
 		
-		public TwRule getRule(String lhsPredicate, String rhsPredicate) {
+		public WTRule getRule(String lhsPredicate, String rhsPredicate) {
 						
 			if (rules.containsKey(lhsPredicate)) {
-				Map<String,TwRule> rulesPerGivenLhs = rules.get(lhsPredicate);
+				Map<String,WTRule> rulesPerGivenLhs = rules.get(lhsPredicate);
 				if (rulesPerGivenLhs.containsKey(rhsPredicate)) {
 					return rulesPerGivenLhs.get(rhsPredicate);
 				}
@@ -311,309 +595,6 @@ public class ContextualizedRuleApplication {
 			return null;			
 		}
 
-	}
-	
-	
-	
-	
-	/* The rule application functions. */
-	/*---------------------------------*/
-	private static final int TOP_RELEVANT = 10;
-	
-	
-	/*	Interactive utility to play with rule applications. */
-	public static void main(String[] args) throws IOException {
-		
-		if (args.length < 5) {
-			System.out.println("Usage: ContextualizedRuleApplication <word-prob-given-topic-filename> <topic-prob-given-slot-filename> <tw-rules-filename> <max-rules-per-lhs-predicate> <min-rule-score> <lhs-tuple>");
-			System.exit(1);
-		}
-		
-		System.out.println("Topic Word Context Sensitive Predicate Inference Rule Application is initializing.");
-		ContextualizedRuleApplication app = new ContextualizedRuleApplication(args[0], args[1], args[2], 
-				Integer.parseInt(args[3]), Double.parseDouble(args[4]), TOP_RELEVANT);
-		
-		int size = TOP_RELEVANT;
-		Set<String> candidateSet = null;
-		while(true) {
-			System.out.println("Enter tuple:");
-			BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
-
-			String lhsTuple = input.readLine();
-			if (lhsTuple.equals("q")) {
-				break;
-			}
-			if (lhsTuple.startsWith("size=")) {
-				size = Integer.parseInt(lhsTuple.split("=")[1]);
-				continue;
-			}
-			
-			if (lhsTuple.startsWith("candidates=")) {
-				String candidatesString = lhsTuple.split("=")[1];
-				if (candidatesString.equals("null")) {
-					candidateSet=null;
-				}
-				String[] tokens = candidatesString.split(" ");
-				candidateSet = new HashSet<String>();
-				for (String tok : tokens) {
-					candidateSet.add(tok);
-				}
-				continue;
-			}
-			
-			List<TwRule> dirtInferredResult = new LinkedList<TwRule>();		
-			List<TwRule> twInferredResult = new LinkedList<TwRule>();
-			app.findTopInferred(lhsTuple,size,dirtInferredResult,twInferredResult, candidateSet);
-			System.out.println();
-			app.printInferred("DIRT",lhsTuple, dirtInferredResult);
-			System.out.println();
-			app.printInferred("TW",lhsTuple, twInferredResult);
-		}
-				
-
-//		app.unitTest();
-	}
-
-	protected void unitTest(){
-		
-		System.out.println(wordTable.getProb("sunday", 0));
-		System.out.println(slotTable.getProb("abbreviate:X", 2));
-		System.out.println(slotTable.getProb("absorb:Y", 2));
-		System.out.println(ruleTable.getRule("X collapse Y", "X fall Y"));
-		
-	}
-
-
-	/* The elements of a topic-word rule set release. */
-	private WordProbGivenTopic wordTable;
-	private TopicProbGivenSlot slotTable;
-	private TwRuleSet ruleTable;
-	private int topRelevantInferred;
-
-	public ContextualizedRuleApplication(String wordTopicFileName, String slotTopicFileName, String TwRuleFileName, int maxRules, double minScore, int topRelevantInferred) throws IOException {
-		this.topRelevantInferred = topRelevantInferred;
-		readRuleResources(wordTopicFileName, slotTopicFileName, TwRuleFileName, maxRules, minScore);
-		
-	}
-
-	/**
-	 * Computes a context sensitive score for a rule application
-	 * @param tPred: text predicate
-	 * @param hPred: hypothesis predicate
-	 * @param xContext: context words side X (space separated words)
-	 * @param yContext: context words side Y (space separated words)
-	 * @return score between 0 to 1, or -1 if predicates are not in the database or an error occurred.
-	 */
-	public double calcContextSensitiveScore(String tPred, String hPred, String xContext, String yContext) {
-
-		List<TwRule> dirtInferredResult = new LinkedList<TwRule>();		
-		List<TwRule> twInferredResult = new LinkedList<TwRule>();
-		
-		if (!isInDatabase(tPred, hPred)) {
-			return -1;
-		}
-		
-		if (xContext.equals("")) {
-			xContext = "NotAvailable";			 
-		}
-		
-		if (yContext.equals("")) {
-			yContext = "NotAvailable";			 
-		}
-
-		findTopInferred(xContext + "\t" + tPred + "\t" + yContext, this.topRelevantInferred, dirtInferredResult, twInferredResult, null);
-
-		if (twInferredResult.size() > 0 ) {
-			return 1-((double) getRank(twInferredResult, toPredTemplate(hPred)) / twInferredResult.size());
-		} else {
-			return 0;
-		}		
-	}
-
-	/**
-	 * Computes a dirt-based (context insensitive score for a rule application).
-	 * @param tPred: text predicate
-	 * @param hPred: hypothesis predicate
-	 * @return score between 0 to 1.
-	 */
-	public double calcDirtScore(String tPred, String hPred) {
-
-		List<TwRule> dirtInferredResult = new LinkedList<TwRule>();		
-		List<TwRule> twInferredResult = new LinkedList<TwRule>();
-
-		findTopInferred("NA\t" + tPred + "\tNA" , TOP_RELEVANT, dirtInferredResult, twInferredResult, null);
-
-		if (dirtInferredResult.size()>0) {
-			return 1-((double) getRank(dirtInferredResult, toPredTemplate(hPred)) / dirtInferredResult.size());
-		} else {
-			return 0;
-		}		
-
-	}
-	
-	
-	protected void printInferred(String method, String lhsTuple, List<TwRule> rules) {		
-		System.out.println("Top " + method + " substitutes for: " + lhsTuple + "\n");
-		
-		if (lhsTuple.split("\t").length != 3) {
-			System.out.print("Invalid lhsTuple\n");
-			return;
-		}
-		
-		String xContext = lhsTuple.split("\t")[0];
-		String yContext = lhsTuple.split("\t")[2];
-		for (TwRule rule : rules) {
-			
-			double twRankScore = calcContextSensitiveScore(fromPredTemplate(rule.lhsPredicate), fromPredTemplate(rule.rhsPredicate), xContext, yContext);
-			double dirtRankScore = calcDirtScore(fromPredTemplate(rule.lhsPredicate), fromPredTemplate(rule.rhsPredicate));
-			
-			System.out.println(rule.rhsPredicate + "\tdirt="+rule.dirtScore + "\tdirt_rank="+dirtRankScore + "\ttw="+rule.twScore + "\ttw_rank="+twRankScore);						
-		}		
-	}
-	
-	protected void readRuleResources(String wordTopicFileName, String slotTopicFileName, String TwRuleFileName, int maxRules, double minScore) throws IOException {
-		wordTable = new WordProbGivenTopic(wordTopicFileName);
-		slotTable = new TopicProbGivenSlot(slotTopicFileName);
-		ruleTable = new TwRuleSet(TwRuleFileName, maxRules, minScore);
-	}
-	
-	protected int getTopicNum() {
-		return wordTable.probabilities.size();
-	}
-	
-	
-	protected void pointwiseAdd(List<Double> a, List<Double> b) {
-		for (int i=0; i<a.size(); i++){
-			a.set(i, a.get(i) + b.get(i));
-		}		
-	}
-	
-	protected String toPredTemplate(String pred) {
-		return "X " + pred + " Y";
-	}
-	
-	protected String fromPredTemplate(String predTemplate) {
-		return predTemplate.substring(2, predTemplate.length()-2);
-	}
-	
-	
-	
-	protected List<Double> computeTopicDistribution(String slot, String[] args) {
-		List<Double> topicDist = new ArrayList<Double>(Collections.nCopies(this.getTopicNum(), 0d));
-		
-		for (String arg : args) {
-			pointwiseAdd(topicDist, computeTopicDistribution(slot, arg));
-		}
-		
-		for (int t=0; t<this.getTopicNum(); t++){
-			topicDist.set(t, topicDist.get(t)/args.length);
-		}		
-		return topicDist;
-		
-	}
-	
-	protected List<Double> computeTopicDistribution(String slot, String arg) {
-		
-		List<Double> topicDist = new ArrayList<Double>(this.getTopicNum());
-		double normFactor = 0;
-		for (int t=0; t<this.getTopicNum(); t++){
-			double prob = slotTable.getProb(slot, t)*wordTable.getProb(arg, t);
-			topicDist.add(prob);
-			normFactor += prob;
-		}
-
-		for (int t=0; t<this.getTopicNum(); t++){
-			topicDist.set(t, topicDist.get(t)/normFactor);
-		}		
-		return topicDist;		
-	}
-	
-	protected double computeTwScore(List<Double> topicDist, Map<Integer, Double> twScores) {
-		
-		double score = 0;
-		for (int t=0; t<topicDist.size();t++) {
-			if (twScores.containsKey(t)) {
-				score += topicDist.get(t)*twScores.get(t);
-			}
-		}
-		return score;
-	}
-	
-	protected int getRank(List<TwRule> rules, String rhsPred) {
-		
-		int i=0;
-		for (i=0; i<rules.size(); i++) {
-			if (rules.get(i).rhsPredicate.equals(rhsPred)) {
-				break;
-			}
-		}		
-		return i;		
-	}
-	
-	public boolean isInDatabase(String lhsPred, String rhsPred) {
-		
-		Map<String,TwRule> rulesLhs = ruleTable.getRulesPerGivenLhs(toPredTemplate(lhsPred));
-		Map<String,TwRule> rulesRhs = ruleTable.getRulesPerGivenLhs(toPredTemplate(rhsPred));
-		
-		return ((rulesLhs != null) && (rulesRhs != null)); 
-		
-	}
-	
-	
-	public void findTopInferred(String lhsTuple, int size, List<TwRule> dirtInferredResult, List<TwRule> twInferredResult, Set<String> candidates){
-		
-		String[] tokens = lhsTuple.split("\t");
-		if (tokens.length<3) {
-			System.out.print("Invalid input.\n");
-			return;
-		}
-		
-		
-		String argX = tokens[0];
-		String lhsPredTemplate = toPredTemplate(tokens[1]);
-		String argY = tokens[2];
-		
-		List<Double> TopicDistributionX = computeTopicDistribution(tokens[1]+":X", argX.split(" "));
-		List<Double> TopicDistributionY = computeTopicDistribution(tokens[1]+":Y", argY.split(" "));
-		
-		PriorityQueue<TwRule> dirtInferred = new PriorityQueue<TwRule>(size, new DirtScoreComparator());
-		PriorityQueue<TwRule> TwInferred = new PriorityQueue<TwRule>(size, new TwScoreComparator());
-		
-		Map<String,TwRule> rules = ruleTable.getRulesPerGivenLhs(lhsPredTemplate);
-		if (rules == null) {
-			return;
-		}
-		for (Map.Entry<String,TwRule> ruleEntry : rules.entrySet()) {
-			TwRule rule = ruleEntry.getValue();
-			if ((candidates != null) && (!candidates.contains(rule.rhsPredicate.split(" ")[1]))) {
-				continue;
-			}
-			
-			/* Ignoring rule with reverse order of slots. */
-			if (rule.rhsPredicate.split(" ")[0].equals("Y")) {
-				continue;
-			}
-			
-			double twScoreX = computeTwScore(TopicDistributionX, rule.twScoresX);
-			double twScoreY = computeTwScore(TopicDistributionY, rule.twScoresY);
-			rule.twScore = Math.sqrt(twScoreX*twScoreY);
-			dirtInferred.add(rule);
-			if (dirtInferred.size()>size) {
-				dirtInferred.poll();
-			}			
-			TwInferred.add(rule);
-			if (TwInferred.size()>size) {
-				TwInferred.poll();
-			}
-		}
-				
-		while(!dirtInferred.isEmpty()) {
-			dirtInferredResult.add(0,dirtInferred.poll());
-		}
-		while(!TwInferred.isEmpty()) {
-			twInferredResult.add(0,TwInferred.poll());
-		}
-		
 	}
 
 }

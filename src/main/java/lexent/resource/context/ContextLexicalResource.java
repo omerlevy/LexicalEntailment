@@ -22,16 +22,16 @@ public class ContextLexicalResource implements LexicalResource {
 	/**
 	 * Initialize resource
 	 * @param wordTopicFileName	LDA word distributions - p(word|topic)
-	 * @param slotTopicFileName	LDA topic mixtures - p(topic|slot	
+	 * @param slotTopicFileName	LDA topic mixtures - p(topic|slot)	
 	 * @param TwRuleFileName	Context sensitive rules
-	 * @param maxRules			Maximum entailed candidates per entailing (the top maxRules per entailing predicate will be read)
-	 * @param minScore			Minimum score of rule (rules with scores below that will not be read)
-	 * @param topRelevantInferred	The top inferred candidates that are taken under consideration
+	 * @param maxRules			Maximum entailed candidates per entailing (the top maxRules per entailing predicate will be read from rules file)
+	 * @param minScore			Minimum score of rule (rules with scores below this will not be read)
+	 * @param topRelevantInferred	The top inferred candidates that are taken under consideration when calculating a rank-based score
 	 * @throws IOException
 	 */
 	public ContextLexicalResource(String wordTopicFileName, String slotTopicFileName, String TwRuleFileName, int maxRules, double minScore, int topRelevantInferred) throws IOException {
 		System.out.print("Initializing ContextLexicalResource.\n");
-		app = new ContextualizedRuleApplication(wordTopicFileName, slotTopicFileName, TwRuleFileName, maxRules, minScore, topRelevantInferred);
+		app = new ContextualizedRuleApplication(wordTopicFileName, slotTopicFileName, TwRuleFileName, maxRules, minScore, true, topRelevantInferred);
 		System.out.print("ContextLexicalResource is ready.\n");
 	}
 
@@ -43,7 +43,7 @@ public class ContextLexicalResource implements LexicalResource {
 			if (t.equals(h)) {
 				return 1;
 			} else {
-				double score = app.calcContextSensitiveScore(t, h, context.contextX, context.contextY);
+				double score = app.calcWTRankScore(t, h, context.contextX, context.contextY);
 				if (score < 0) {
 					throw new LexicalResourceException("Unknown words: " + _t + " " + _h);
 				}
